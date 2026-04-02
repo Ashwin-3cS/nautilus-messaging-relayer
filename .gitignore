@@ -1,0 +1,6 @@
+target/
+out/
+*.eif
+*.cpio
+build.log
+.env
