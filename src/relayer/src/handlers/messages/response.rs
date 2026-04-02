@@ -82,7 +82,7 @@ impl From<Message> for MessageResponse {
 }
 
 /// Response for POST /messages
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct CreateMessageResponse {
     pub message_id: Uuid,
 }
@@ -96,7 +96,7 @@ pub struct MessagesListResponse {
 }
 
 /// Generic empty response for PUT/DELETE operations
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct EmptyResponse {}
 
 /// Response enum for GET /messages endpoint

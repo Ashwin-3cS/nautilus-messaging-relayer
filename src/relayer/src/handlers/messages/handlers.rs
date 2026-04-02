@@ -16,6 +16,8 @@ use super::error::ApiError;
 use super::request::{
     AttachmentRequest, CreateMessageRequest, GetMessagesQuery, UpdateMessageRequest,
 };
+use crate::enclave::{to_signed_response, IntentScope, ProcessedDataResponse, IntentMessage};
+
 use super::response::{
     CreateMessageResponse, EmptyResponse, GetMessagesResponse, MessageResponse,
     MessagesListResponse,
@@ -26,12 +28,12 @@ const DEFAULT_PAGE_LIMIT: usize = 50;
 /// Maximum allowed messages per page
 const MAX_PAGE_LIMIT: usize = 100;
 
-/// POST /messages - Create a new message
+/// POST /messages - Create a new message. Returns a signed response proving the enclave handled delivery.
 pub async fn create_message(
     State(state): State<AppState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreateMessageRequest>,
-) -> Result<(StatusCode, Json<CreateMessageResponse>), ApiError> {
+) -> Result<(StatusCode, Json<ProcessedDataResponse<IntentMessage<CreateMessageResponse>>>), ApiError> {
     // Decode hex-encoded encrypted text
     let encrypted_msg = hex::decode(&req.encrypted_text)
         .map_err(|e| ApiError::BadRequest(format!("Invalid hex in encrypted_text: {}", e)))?;
@@ -80,12 +82,13 @@ pub async fn create_message(
     // Notify the Walrus sync worker that a new message was created.
     let _ = state.sync_notifier.send(());
 
-    Ok((
-        StatusCode::CREATED,
-        Json(CreateMessageResponse {
-            message_id: created.id,
-        }),
-    ))
+    let payload = CreateMessageResponse {
+        message_id: created.id,
+    };
+    let timestamp_ms = chrono::Utc::now().timestamp_millis() as u64;
+    let signed = to_signed_response(&state.eph_kp, payload, timestamp_ms, IntentScope::MessageDelivery);
+
+    Ok((StatusCode::CREATED, Json(signed)))
 }
 
 /// GET /messages - Get single message or paginated list
@@ -141,13 +144,13 @@ pub async fn get_messages(
     Ok(Json(GetMessagesResponse::List(response)))
 }
 
-/// PUT /messages - Update a message
+/// PUT /messages - Update a message. Returns a signed response proving the enclave handled the update.
 /// Only the original message sender can edit their own message.
 pub async fn update_message(
     State(state): State<AppState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<UpdateMessageRequest>,
-) -> Result<Json<EmptyResponse>, ApiError> {
+) -> Result<Json<ProcessedDataResponse<IntentMessage<EmptyResponse>>>, ApiError> {
     // Fetch existing message to verify ownership and group membership
     let existing_message = state.storage.get_message(req.message_id).await?;
 
@@ -208,7 +211,10 @@ pub async fn update_message(
         )
         .await?;
 
-    Ok(Json(EmptyResponse {}))
+    let timestamp_ms = chrono::Utc::now().timestamp_millis() as u64;
+    let signed = to_signed_response(&state.eph_kp, EmptyResponse {}, timestamp_ms, IntentScope::MessageDelivery);
+
+    Ok(Json(signed))
 }
 
 /// DELETE /messages/:message_id - Soft delete a message
