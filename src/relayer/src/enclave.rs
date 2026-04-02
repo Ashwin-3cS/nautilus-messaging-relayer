@@ -3,12 +3,12 @@ use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
-use nautilus_enclave::EnclaveKeyPair;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::VecDeque;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
+use nautilus_enclave::EnclaveKeyPair;
 use tracing::info;
 
 // ── In-memory log ring buffer ─────────────────────────────────────────
@@ -109,7 +109,7 @@ pub struct GetAttestationResponse {
 }
 
 pub async fn get_attestation(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<Json<GetAttestationResponse>, EnclaveError> {
     info!("get_attestation called");
     let pk_bytes = state.eph_kp.public_key_bytes();
@@ -129,7 +129,7 @@ pub struct EnclaveHealthResponse {
 }
 
 pub async fn enclave_health(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<Json<EnclaveHealthResponse>, EnclaveError> {
     Ok(Json(EnclaveHealthResponse {
         public_key: hex::encode(state.eph_kp.public_key_bytes()),
@@ -151,7 +151,7 @@ pub struct LogsResponse {
 }
 
 pub async fn get_logs(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     Query(params): Query<LogsQueryParams>,
 ) -> Result<Json<LogsResponse>, EnclaveError> {
     let n = params.lines.unwrap_or(100).min(1000);
