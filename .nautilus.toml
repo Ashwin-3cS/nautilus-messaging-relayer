@@ -1,0 +1,8 @@
+[project]
+template = "messaging-relayer"
+
+[sui]
+network = "testnet"
+package_id = ""        # fill after deploying the on-chain verifier contract
+config_object_id = ""  # fill after running nautilus register-enclave
+cap_object_id = ""     # fill after running nautilus register-enclave
