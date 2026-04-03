@@ -156,9 +156,16 @@ jobs:
             echo "ERROR: Enclave not running, cannot send config"
             exit 1
           fi
-          printf 'SUI_RPC_URL=${SUI_RPC_URL}\nGROUPS_PACKAGE_ID=${GROUPS_PACKAGE_ID}\n' \
-            | socat - VSOCK-CONNECT:\$CID:7000
-          echo "Config sent to enclave CID=\$CID"
+          # Wait for run.sh to start listening on VSOCK port 7000 (up to 30s)
+          for i in \$(seq 1 10); do
+            if printf 'SUI_RPC_URL=${SUI_RPC_URL}\nGROUPS_PACKAGE_ID=${GROUPS_PACKAGE_ID}\n' \
+                 | socat - VSOCK-CONNECT:\$CID:7000 2>/dev/null; then
+              echo "Config sent to enclave CID=\$CID"
+              break
+            fi
+            echo "Waiting for enclave to accept config... (attempt \$i)"
+            sleep 3
+          done
           REMOTE
           rm -f /tmp/deploy_key
 

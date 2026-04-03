@@ -33,8 +33,8 @@ EOF
 
 echo "Config received. Starting messaging-relayer..."
 
-# Expose messaging-relayer on VSOCK port 4000
-socat VSOCK-LISTEN:4000,reuseaddr,fork TCP:localhost:4000 &
+# Expose messaging-relayer on VSOCK port 4000 (relayer listens on TCP 3000)
+socat VSOCK-LISTEN:4000,reuseaddr,fork TCP:localhost:3000 &
 
 /messaging_relayer > /tmp/server.log 2>&1 &
 SERVER_PID=$!
