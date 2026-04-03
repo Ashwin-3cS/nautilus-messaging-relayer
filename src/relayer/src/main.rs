@@ -26,6 +26,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::EnvFilter;
 
 // Import auth middleware components
 use auth::{auth_middleware, create_membership_store, AuthState};
@@ -103,8 +104,15 @@ async fn main() {
     dotenvy::dotenv().ok();
 
     // Set up dual tracing: stdout (for VSOCK streaming) + in-memory buffer (for /logs)
+    // Keep dependency noise low so relayer/Walrus activity remains visible in /logs.
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+        EnvFilter::new(
+            "info,messaging_relayer=info,h2=warn,hyper=warn,reqwest=warn,sui_rpc=warn,tower_http=warn"
+        )
+    });
     let log_buffer = Arc::new(LogBuffer::new(1000));
     tracing_subscriber::registry()
+        .with(env_filter)
         .with(tracing_subscriber::fmt::layer())
         .with(LogBufferLayer {
             buffer: log_buffer.clone(),

@@ -4,3 +4,4 @@ out/
 *.cpio
 build.log
 .env
+scripts/node_modules

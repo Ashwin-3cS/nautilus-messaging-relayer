@@ -38,7 +38,7 @@ import { createSuiStackMessagingClient, messagingPermissionTypes } from '@mysten
 // ── Testnet defaults ───────────────────────────────────────────────────────
 
 const TESTNET_GROUPS_PACKAGE_ID =
-  '0x4b57c2471f96bd6ca1cbc0ec54cd44af11f3167aac7a5b27f98e6f5e28ef5c6e';
+  '0xba8a26d42bc8b5e5caf4dac2a0f7544128d5dd9b4614af88eec1311ade11de79';
 
 const TESTNET_MESSAGING_PACKAGE_ID =
   '0x047696be0e98f1b47a99727fecf2955cadb23c56f67c6b872b74e3ad59d51b46';
