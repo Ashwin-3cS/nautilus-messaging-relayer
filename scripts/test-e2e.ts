@@ -101,6 +101,23 @@ function assert(condition: boolean, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
+async function withSessionKeyRetry<T>(
+  run: () => Promise<T>,
+  rebuildHint: string,
+): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (!message.includes('Session key has expired')) {
+      throw err;
+    }
+
+    console.log(`    ${rebuildHint}: session key expired, retrying once with a fresh client`);
+    return await run();
+  }
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 async function fundNewAccount(
@@ -266,18 +283,20 @@ async function main() {
 
   await test('Send encrypted message via enclave relayer', async () => {
     assert(memberKeypair !== null, 'memberKeypair not set — group setup failed');
-    const memberClient = buildClient(memberKeypair);
     const expectedText = 'Hello from Nautilus enclave!';
 
     console.log(`    sending plaintext: "${expectedText}"`);
     console.log(`    sender: ${memberKeypair.toSuiAddress()}`);
     console.log(`    group: ${groupId}`);
 
-    const result = await memberClient.messaging.sendMessage({
-      signer: memberKeypair,
-      groupRef: { uuid: groupUuid },
-      text: expectedText,
-    });
+    const result = await withSessionKeyRetry(async () => {
+      const memberClient = buildClient(memberKeypair!);
+      return memberClient.messaging.sendMessage({
+        signer: memberKeypair!,
+        groupRef: { uuid: groupUuid },
+        text: expectedText,
+      });
+    }, 'sendMessage');
 
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(result.messageId)) {
       createdMessageId = result.messageId;
@@ -287,11 +306,14 @@ async function main() {
 
     // Nautilus wraps POST /messages in a signed envelope, so the upstream HTTP transport
     // may not see a top-level `message_id`. Recover the ID from a follow-up fetch.
-    const fetched = await memberClient.messaging.getMessages({
-      signer: memberKeypair,
-      groupRef: { uuid: groupUuid },
-      limit: 10,
-    });
+    const fetched = await withSessionKeyRetry(async () => {
+      const memberClient = buildClient(memberKeypair!);
+      return memberClient.messaging.getMessages({
+        signer: memberKeypair!,
+        groupRef: { uuid: groupUuid },
+        limit: 10,
+      });
+    }, 'getMessages');
     const recovered = fetched.messages.find(
       (msg) =>
         msg.text === expectedText && msg.senderAddress === memberKeypair!.toSuiAddress(),
@@ -308,13 +330,14 @@ async function main() {
   await test('Retrieve and decrypt message', async () => {
     assert(memberKeypair !== null, 'memberKeypair not set — group setup failed');
     assert(createdMessageId.length > 0, 'createdMessageId not set — send step failed');
-    const memberClient = buildClient(memberKeypair);
-
-    const msg = await memberClient.messaging.getMessage({
-      signer: memberKeypair,
-      groupRef: { uuid: groupUuid },
-      messageId: createdMessageId,
-    });
+    const msg = await withSessionKeyRetry(async () => {
+      const memberClient = buildClient(memberKeypair!);
+      return memberClient.messaging.getMessage({
+        signer: memberKeypair!,
+        groupRef: { uuid: groupUuid },
+        messageId: createdMessageId,
+      });
+    }, 'getMessage');
 
     console.log(`    fetched messageId: ${msg.messageId}`);
     console.log(`    decrypted text: "${msg.text}"`);
