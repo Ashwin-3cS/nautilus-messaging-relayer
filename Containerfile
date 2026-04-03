@@ -15,7 +15,7 @@ FROM stagex/core-cmake@sha256:64d057d580f26d096603e13d1714619a4eb105a09023f26ce7
 FROM stagex/core-make@sha256:45523d7f448c58a2a1159b578a0c838010dac9b9a59bdd02f1e4dc533e618de6 AS core-make
 FROM stagex/user-eif_build@sha256:4cac953996e839b6202d85e6fe1f67db33c10432c43fceff13dfbf5d7e665574 AS user-eif_build
 FROM stagex/user-gen_initramfs@sha256:74d3581ed47022807b658bb38e8cdc05068472928c45c170f78054a27e97b634 AS user-gen_initramfs
-FROM stagex/linux-nitro@sha256:31a41bc241c8279b5b40926b84e331ee8e63a7304bdb662140b8b7355d74343c AS user-linux-nitro
+FROM stagex/linux-nitro@sha256:073c4603686e3bdc0ed6755fee3203f6f6f1512e0ded09eaea8866b002b04264 AS user-linux-nitro
 FROM stagex/user-cpio@sha256:9802cf7909c70e779ba8fe4923b0e190241c4d6ad329f3f0720c2a7f1d97cf37 AS user-cpio
 FROM stagex/user-socat@sha256:91cd7505fb97593e5790bdbb0ca62d5fd2bae0d70fda025d46871d0a36410f7d AS user-socat
 
