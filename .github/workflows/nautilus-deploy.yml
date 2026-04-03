@@ -139,6 +139,29 @@ jobs:
           REMOTE
           rm -f /tmp/deploy_key
 
+      - name: Send config to enclave
+        env:
+          EC2_HOST: ${{ secrets.TEE_EC2_HOST }}
+          EC2_USER: ${{ secrets.TEE_EC2_USER }}
+          EC2_KEY: ${{ secrets.TEE_EC2_SSH_KEY }}
+          SUI_RPC_URL: ${{ secrets.RELAYER_SUI_RPC_URL }}
+          GROUPS_PACKAGE_ID: ${{ secrets.RELAYER_GROUPS_PACKAGE_ID }}
+        run: |
+          echo "$EC2_KEY" > /tmp/deploy_key && chmod 600 /tmp/deploy_key
+          SSH_OPTS="-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=10"
+          ssh $SSH_OPTS -i /tmp/deploy_key "$EC2_USER@$EC2_HOST" "bash -s" << REMOTE
+          set -e
+          CID=\$(sudo nitro-cli describe-enclaves | jq -r '.[0].EnclaveCID // empty')
+          if [ -z "\$CID" ]; then
+            echo "ERROR: Enclave not running, cannot send config"
+            exit 1
+          fi
+          printf 'SUI_RPC_URL=${SUI_RPC_URL}\nGROUPS_PACKAGE_ID=${GROUPS_PACKAGE_ID}\n' \
+            | socat - VSOCK-CONNECT:\$CID:7000
+          echo "Config sent to enclave CID=\$CID"
+          REMOTE
+          rm -f /tmp/deploy_key
+
       - name: Setup VSOCK bridge
         env:
           EC2_HOST: ${{ secrets.TEE_EC2_HOST }}
