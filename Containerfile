@@ -55,7 +55,7 @@ RUN cargo build --workspace --no-default-features --release --target x86_64-unkn
 # Build messaging-relayer with AWS NSM support
 WORKDIR /src/relayer
 ENV RUSTFLAGS="-C target-feature=+crt-static -C relocation-model=static"
-RUN cargo build --release --target x86_64-unknown-linux-musl --features aws
+RUN cargo build --locked --release --target x86_64-unknown-linux-musl --features aws
 
 # Package into initramfs
 WORKDIR /build_cpio
