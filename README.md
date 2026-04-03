@@ -2,6 +2,8 @@
 
 Nitro-enclave-ready template for running the Sui Stack Messaging relayer under Nautilus.
 
+This template is wired directly into `nautilus-ops`, so the CLI can scaffold it, generate its CI workflow, and manage the enclave lifecycle end to end.
+
 It adapts the relayer to:
 - expose enclave attestation at `/get_attestation`
 - expose enclave health at `/health`
@@ -10,6 +12,12 @@ It adapts the relayer to:
 - stream logs through `/logs`
 - sync group membership from Sui inside the enclave
 - archive encrypted message batches to Walrus in the background
+
+## Upstream Projects
+
+- Sui Stack Messaging: `https://github.com/MystenLabs/sui-stack-messaging/`
+- Sui Groups: `https://github.com/MystenLabs/sui-groups`
+- Nautilus Ops: `https://github.com/Ashwin-3cS/nautilus-ops/`
 
 ## Architecture
 
