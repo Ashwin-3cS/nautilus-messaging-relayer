@@ -1,0 +1,20 @@
+{
+  "name": "nautilus-messaging-relayer-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test-e2e": "tsx test-e2e.ts"
+  },
+  "dependencies": {
+    "@mysten/seal": "^0.4.0",
+    "@mysten/sui": "^1.21.0",
+    "@mysten/sui-groups": "^0.4.0",
+    "@mysten/sui-stack-messaging": "^0.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
