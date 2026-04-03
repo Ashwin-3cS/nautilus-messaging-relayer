@@ -7,10 +7,10 @@
     "test-e2e": "tsx test-e2e.ts"
   },
   "dependencies": {
-    "@mysten/seal": "^0.4.0",
-    "@mysten/sui": "^1.21.0",
-    "@mysten/sui-groups": "^0.4.0",
-    "@mysten/sui-stack-messaging": "^0.4.0"
+    "@mysten/seal": "^1.1.1",
+    "@mysten/sui": "^2.13.2",
+    "@mysten/sui-groups": "^0.0.1",
+    "@mysten/sui-stack-messaging": "^0.0.2"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

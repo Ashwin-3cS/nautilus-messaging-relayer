@@ -30,10 +30,9 @@
  *   RELAYER_SYNC_DELAY_MS    — How long to wait for relayer to sync (default: 12000)
  */
 
-import { SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
-import { SealClient } from '@mysten/seal';
 import { createSuiStackMessagingClient, messagingPermissionTypes } from '@mysten/sui-stack-messaging';
 
 // ── Testnet defaults ───────────────────────────────────────────────────────
@@ -105,7 +104,7 @@ function assert(condition: boolean, message: string): asserts condition {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 async function fundNewAccount(
-  suiClient: SuiClient,
+  suiClient: SuiGrpcClient,
   adminKeypair: Ed25519Keypair,
 ): Promise<Ed25519Keypair> {
   const newKeypair = new Ed25519Keypair();
@@ -187,13 +186,17 @@ async function main() {
 
   console.log('\n3. Messaging flow (Sui testnet)');
 
-  const suiClient = new SuiClient({ url: SUI_RPC_URL });
-
-  const sealClient = new SealClient({
-    suiClient,
-    serverConfigs: sealServerConfigs,
-    threshold: SEAL_THRESHOLD,
-    verifyKeyServers: false,
+  const suiClient = new SuiGrpcClient({
+    baseUrl: SUI_RPC_URL,
+    network: 'testnet',
+    mvr: {
+      overrides: {
+        packages: {
+          '@local-pkg/sui-groups': GROUPS_PACKAGE_ID,
+          '@local-pkg/sui-stack-messaging': MESSAGING_PACKAGE_ID,
+        },
+      },
+    },
   });
 
   const packageConfig = {
@@ -211,9 +214,17 @@ async function main() {
 
   function buildClient(keypair: Ed25519Keypair) {
     return createSuiStackMessagingClient(suiClient, {
-      seal: sealClient,
+      seal: {
+        serverConfigs: sealServerConfigs,
+        verifyKeyServers: false,
+      },
       encryption: {
-        sessionKey: { signer: keypair },
+        sessionKey: {
+          signer: keypair,
+          ttlMin: 30,
+          refreshBufferMs: 5_000,
+        },
+        sealThreshold: SEAL_THRESHOLD,
       },
       relayer: { relayerUrl: RELAYER_URL },
       packageConfig,
@@ -256,18 +267,42 @@ async function main() {
   await test('Send encrypted message via enclave relayer', async () => {
     assert(memberKeypair !== null, 'memberKeypair not set — group setup failed');
     const memberClient = buildClient(memberKeypair);
+    const expectedText = 'Hello from Nautilus enclave!';
+
+    console.log(`    sending plaintext: "${expectedText}"`);
+    console.log(`    sender: ${memberKeypair.toSuiAddress()}`);
+    console.log(`    group: ${groupId}`);
 
     const result = await memberClient.messaging.sendMessage({
       signer: memberKeypair,
       groupRef: { uuid: groupUuid },
-      text: 'Hello from Nautilus enclave!',
+      text: expectedText,
     });
 
-    assert(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(result.messageId),
-      `messageId should be a UUID, got: ${result.messageId}`,
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(result.messageId)) {
+      createdMessageId = result.messageId;
+      console.log(`    relayer returned messageId: ${createdMessageId}`);
+      return;
+    }
+
+    // Nautilus wraps POST /messages in a signed envelope, so the upstream HTTP transport
+    // may not see a top-level `message_id`. Recover the ID from a follow-up fetch.
+    const fetched = await memberClient.messaging.getMessages({
+      signer: memberKeypair,
+      groupRef: { uuid: groupUuid },
+      limit: 10,
+    });
+    const recovered = fetched.messages.find(
+      (msg) =>
+        msg.text === expectedText && msg.senderAddress === memberKeypair!.toSuiAddress(),
     );
-    createdMessageId = result.messageId;
+
+    assert(
+      recovered !== undefined,
+      `send returned messageId=${String(result.messageId)} and no matching message was found`,
+    );
+    createdMessageId = recovered.messageId;
+    console.log(`    recovered messageId from fetch: ${createdMessageId}`);
   });
 
   await test('Retrieve and decrypt message', async () => {
@@ -280,6 +315,10 @@ async function main() {
       groupRef: { uuid: groupUuid },
       messageId: createdMessageId,
     });
+
+    console.log(`    fetched messageId: ${msg.messageId}`);
+    console.log(`    decrypted text: "${msg.text}"`);
+    console.log(`    sender address: ${msg.senderAddress}`);
 
     assert(msg.messageId === createdMessageId, `messageId mismatch: ${msg.messageId}`);
     assert(
